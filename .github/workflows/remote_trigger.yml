@@ -27,4 +27,4 @@ jobs:
         env:
           LINKEDIN_USER: ${{ secrets.LINKEDIN_USER }}
           LINKEDIN_PASS: ${{ secrets.LINKEDIN_PASS }}
-        run: python "Task thục tập/Crawl_LinkedIn_Profiles_2.py"
+        run: python "Crawl_LinkedIn_Profiles_2.py"
