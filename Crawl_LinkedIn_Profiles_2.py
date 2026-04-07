@@ -52,7 +52,7 @@ def connect_google_sheet():
         ]
 
         creds = Credentials.from_service_account_file(
-    "vivid-layout-492502-m1-0bf0fc77aeb4.json",
+    "vivid-layout-492502-m1-ec6b14b41e28.json",
     scopes=scope
 )
 
