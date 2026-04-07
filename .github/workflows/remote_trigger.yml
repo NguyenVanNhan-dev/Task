@@ -21,7 +21,7 @@ jobs:
       - name: Create credentials file
         run: |
         # Lấy nội dung từ Secret và ghi vào file service_account.json tạm thời
-        echo '${{ secrets.CREDS_JSON }}' > service_account.json
+          echo '${{ secrets.CREDS_JSON }}' > service_account.json
         
       - name: Run Script
         env:
