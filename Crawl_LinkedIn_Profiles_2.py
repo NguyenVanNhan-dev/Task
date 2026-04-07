@@ -69,6 +69,33 @@ def connect_google_sheet():
         print(f"⚠️ Lỗi kết nối Sheet: {e}")
         return None
 # --- 3. LOGIN ---
+def login_with_cookies(driver):
+    driver.get("https://www.linkedin.com")
+    time.sleep(3)
+    
+    # Lấy cookies từ GitHub Secret (được truyền qua biến môi trường)
+    cookies_json = os.environ.get("LINKEDIN_COOKIES")
+    
+    if cookies_json:
+        cookies = json.loads(cookies_json)
+        for cookie in cookies:
+            # Loại bỏ thuộc tính 'sameSite' nếu có để tránh lỗi Selenium
+            if 'sameSite' in cookie:
+                del cookie['sameSite']
+            try:
+                driver.add_cookie(cookie)
+            except:
+                pass
+        
+        driver.refresh()
+        time.sleep(5)
+        
+        if "feed" in driver.current_url or "checkpoint" not in driver.current_url:
+            print("✅ Đăng nhập bằng Cookie thành công!")
+            return True
+            
+    print("❌ Cookie hết hạn hoặc không hợp lệ. Đang thử Login bằng Pass...")
+    return False # Nếu fail thì mới chạy tiếp hàm login_linkedin cũ của bạn
 def login_linkedin(driver):
     driver.get("https://www.linkedin.com/login")
     if os.path.exists(COOKIES_FILE):
@@ -198,7 +225,12 @@ def main():
     urls = ws.col_values(1)
 
     driver = setup_driver()
-    if not login_linkedin(driver): return
+    if not login_with_cookies(driver):
+        print("⚠️ Cookie không hoạt động, thử đăng nhập bằng User/Pass...")
+        if not login_linkedin(driver):
+            print("❌ Đăng nhập thất bại hoàn toàn.")
+            driver.quit()
+            return
 
     for i in range(1, len(urls)):
         url = urls[i]
