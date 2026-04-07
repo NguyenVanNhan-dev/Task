@@ -21,7 +21,7 @@ jobs:
         
       - name: Create credentials file
         run: |
-            echo '${{ secrets.CREDS_JSON }}' > service_account.json
+            echo '${{ secrets.CREDS_JSON }}' > vivid-layout-492502-m1-0bf0fc77aeb4.json
         
       - name: Run Script
         env:
