@@ -24,8 +24,8 @@ SHEET_ID_OR_URL = 'https://docs.google.com/spreadsheets/d/1OhjIaXVwbO3x_Iu07h3s5
 INPUT_TAB_NAME = "Sheet1"
 
 # TÀI KHOẢN
-USERNAME = "ray.lead@sam-foundation.org"
-PASSWORD = "passnotE@1234"
+USERNAME = os.environ.get("LINKEDIN_USER")
+PASSWORD = os.environ.get("LINKEDIN_PASS")
 
 # --- 1. SETUP DRIVER ---
 def setup_driver():
