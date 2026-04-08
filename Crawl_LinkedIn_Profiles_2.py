@@ -226,12 +226,7 @@ def main():
     urls = ws.col_values(1)
 
     driver = setup_driver()
-    if not login_with_cookies(driver):
-        print("⚠️ Cookie không hoạt động, thử đăng nhập bằng User/Pass...")
-        if not login_linkedin(driver):
-            print("❌ Đăng nhập thất bại hoàn toàn.")
-            driver.quit()
-            return
+    if not login_with_cookies(driver): return
 
     for i in range(1, len(urls)):
         url = urls[i]
