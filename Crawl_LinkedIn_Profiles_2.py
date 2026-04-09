@@ -32,6 +32,7 @@ PASSWORD = os.environ.get("LINKEDIN_PASS")
 # --- 1. SETUP DRIVER ---
 def setup_driver():
     options = uc.ChromeOptions()
+    options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument("--window-size=1920,1080")
@@ -39,8 +40,7 @@ def setup_driver():
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
     
-    # Tắt headless tạm thời để test (sau ổn thì bật lại)
-    # options.add_argument('--headless=new')
+    
     
     driver = uc.Chrome(options=options, version_main=None)  # Tự detect version Chrome
     driver.set_page_load_timeout(90)
