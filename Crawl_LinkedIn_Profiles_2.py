@@ -42,7 +42,8 @@ def setup_driver():
     
     driver = uc.Chrome(
         options=options,
-        version_main=None
+        version_main=146,          # ← Quan trọng nhất
+        headless=True
     )
     
     driver.set_page_load_timeout(90)
