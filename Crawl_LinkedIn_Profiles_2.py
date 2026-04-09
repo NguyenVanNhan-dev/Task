@@ -125,7 +125,7 @@ def crawl_profile(driver, raw_url):
         driver.get(url)
 
         print(f"--- Processing: {url}")
-        time.sleep(random.uniform(5, 10))
+        time.sleep(random.uniform(10, 16))
         page_source = driver.page_source
         if "This page doesn’t exist" in page_source or "Page not found" in driver.title:
             print(f"⚠️ Cảnh báo: Hồ sơ không tồn tại (404).")
@@ -139,9 +139,9 @@ def crawl_profile(driver, raw_url):
     
 
         # Cuộn trang nhiều lần để kích hoạt dữ liệu ẩn
-        for _ in range(3):
-            driver.execute_script("window.scrollBy(0, 300);")
-            time.sleep(1)
+        for _ in range(4):
+            driver.execute_script("window.scrollBy(0, 500);")
+            time.sleep(1.5)
 
         if any(x in driver.current_url for x in ["login", "authwall", "checkpoint", "challenge"]):
             print("Debug: Auth wall detected.")
