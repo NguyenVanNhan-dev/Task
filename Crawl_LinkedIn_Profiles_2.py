@@ -272,7 +272,7 @@ def main():
             print("reached max limit")
             break
 
-        time.sleep(random.randint(10, 20))
+        time.sleep(random.randint(15, 28))
 
     driver.quit()
 
