@@ -38,11 +38,9 @@ def setup_driver():
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--lang=en-US")
     options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
-    
-    
-    
-    driver = uc.Chrome(options=options, version_main=None)  # Tự detect version Chrome
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+
+    driver = uc.Chrome(options=options, version_main=None)
     driver.set_page_load_timeout(90)
     return driver
 
