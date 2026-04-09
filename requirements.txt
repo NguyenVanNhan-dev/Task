@@ -4,3 +4,4 @@ webdriver-manager
 gspread
 google-auth
 ipython
+undetected-chromedriver
