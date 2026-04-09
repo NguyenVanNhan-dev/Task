@@ -88,7 +88,7 @@ def login_with_cookies(driver):
             except:
                 pass
         
-        driver.refresh()
+        driver.get("https://www.linkedin.com/feed/")
         time.sleep(5)
         
         if "feed" in driver.current_url or "checkpoint" not in driver.current_url:
