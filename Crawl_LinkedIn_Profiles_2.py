@@ -31,9 +31,7 @@ PASSWORD = os.environ.get("LINKEDIN_PASS")
 
 # --- 1. SETUP DRIVER ---
 def setup_driver():
-   options = uc.ChromeOptions()
-    
-    # Các option an toàn cho GitHub Actions
+    options = uc.ChromeOptions()
     options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
@@ -42,12 +40,9 @@ def setup_driver():
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--lang=en-US")
     
-    # KHÔNG dùng add_experimental_option("excludeSwitches") khi dùng undetected
-    
     driver = uc.Chrome(
-        options=options, 
-        version_main=None,      # Tự detect phiên bản Chrome
-        headless=True           # Bổ sung
+        options=options,
+        version_main=None
     )
     
     driver.set_page_load_timeout(90)
