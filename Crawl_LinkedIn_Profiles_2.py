@@ -235,15 +235,37 @@ def main():
         print(f"🔄 Đang xử lý: {url}")
         data, status = crawl_profile(driver, url)
 
-        if data and data['Name']:
-            print(f"   ✅ OK: {data['Name']} | {data['Location']} | {data['Title']}, {data['Connection']}, {data['Company']}")
-            ws.update(range_name=f"B{i+1}:F{i+1}", values=[[
-                data['Name'], data['Title'], data['Location'], data['Connection'], data['Company']
+        row = i + 1
+        if data and data.get('Name') == "No Profile":
+            # === TRƯỜNG HỢP PROFILE KHÔNG TỒN TẠI ===
+            ws.update(range_name=f"B{row}:G{row}", values=[[
+                "No Profile", "", "", "", "", ""
             ]])
+            print(f"   ⚠️ Profile không tồn tại (NOT_FOUND)")
+
+        elif data and data.get('Name') and data['Name'] != "No Profile":
+            # === THÀNH CÔNG ===
+            ws.update(range_name=f"B{row}:G{row}", values=[[
+                data['Name'], 
+                data['Title'], 
+                data['Location'], 
+                data['Connection'], 
+                data['Company'],
+                "Success"
+            ]])
+            print(f"   ✅ OK: {data['Name']}")
+
         else:
-            print(f"   ❌ Lỗi: {status}")
-            ws.update_cell(i+1, 2, f"Error: {status}")
-            if status == "AUTH_WALL": break
+            # === LỖI KHÁC ===
+            error_msg = f"Error: {status}"
+            ws.update(range_name=f"B{row}:G{row}", values=[[
+                "", "", "", "", "", error_msg
+            ]])
+            print(f"   ❌ {error_msg}")
+
+            if status == "AUTH_WALL":
+                print("🛑 Dừng do Auth Wall!")
+                break
 
         count +=1
         if count >= MAX_PROFILE:
