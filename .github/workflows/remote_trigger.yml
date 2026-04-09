@@ -17,7 +17,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install system dependencies (RẤT QUAN TRỌNG)
+      - name: Install system dependencies (Fix cho Ubuntu 24.04)
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -35,7 +35,7 @@ jobs:
             libxdamage1 \
             libxrandr2 \
             libgbm1 \
-            libasound2 \
+            libasound2t64 \
             libpango-1.0-0 \
             libcairo2
 
