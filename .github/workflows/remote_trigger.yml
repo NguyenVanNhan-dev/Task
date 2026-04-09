@@ -48,7 +48,7 @@ jobs:
       - name: Install Python packages
         run: |
           pip install --upgrade pip
-          pip install undetected-chromedriver selenium gspread google-auth google-auth-oauthlib IPython
+          pip install undetected-chromedriver selenium gspread google-auth google-auth-oauthlib IPython webdriver_manager
 
       - name: Create credentials file
         run: |
