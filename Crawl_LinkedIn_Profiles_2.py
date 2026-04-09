@@ -31,18 +31,27 @@ PASSWORD = os.environ.get("LINKEDIN_PASS")
 
 # --- 1. SETUP DRIVER ---
 def setup_driver():
-    options = uc.ChromeOptions()
+   options = uc.ChromeOptions()
+    
+    # Các option an toàn cho GitHub Actions
     options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument('--disable-gpu')
+    options.add_argument('--disable-blink-features=AutomationControlled')
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--lang=en-US")
-    options.add_argument("--disable-blink-features=AutomationControlled")
-    options.add_experimental_option("excludeSwitches", ["enable-automation"])
-
-    driver = uc.Chrome(options=options, version_main=None)
+    
+    # KHÔNG dùng add_experimental_option("excludeSwitches") khi dùng undetected
+    
+    driver = uc.Chrome(
+        options=options, 
+        version_main=None,      # Tự detect phiên bản Chrome
+        headless=True           # Bổ sung
+    )
+    
     driver.set_page_load_timeout(90)
+    driver.implicitly_wait(15)
     return driver
 
 # --- 2. KẾT NỐI GOOGLE SHEET ---
