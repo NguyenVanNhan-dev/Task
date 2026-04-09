@@ -18,7 +18,11 @@ jobs:
 
       - name: Install dependencies
         run: pip install -r requirements.txt
-        
+      - name: Setup Chrome Browser
+        uses: browser-actions/setup-chrome@v2
+        with:
+          chrome-version: stable
+          install-chromedriver: true
       - name: Create credentials file
         run: |
             echo '${{ secrets.CREDS_JSON }}' > vivid-layout-492502-m1-ec6b14b41e28.json
