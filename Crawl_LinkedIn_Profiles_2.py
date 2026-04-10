@@ -97,9 +97,13 @@ def login_with_cookies(driver):
         driver.get("https://www.linkedin.com/feed/")
         time.sleep(5)
         
-        if "feed" in driver.current_url or "checkpoint" not in driver.current_url:
-            print("✅ Đăng nhập bằng Cookie thành công!")
+        if "feed" in driver.current_url.lower():
+            print("✅ Login cookie THÀNH CÔNG!")
             return True
+        else:
+            print(f"❌ Login thất bại - URL hiện tại: {driver.current_url}")
+            driver.save_screenshot("login_failed.png")
+            return False
             
     print("❌ Cookie hết hạn hoặc không hợp lệ. Đang thử Login bằng Pass...")
     return False # Nếu fail thì mới chạy tiếp hàm login_linkedin cũ của bạn
