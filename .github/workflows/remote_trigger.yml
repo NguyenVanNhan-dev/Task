@@ -59,3 +59,11 @@ jobs:
           LINKEDIN_COOKIES: ${{ secrets.LINKEDIN_COOKIES }}
         run: |
           xvfb-run -a python Crawl_LinkedIn_Profiles_2.py
+      - name: Upload Screenshots
+        if: always()                    # Luôn upload dù thành công hay lỗi
+        uses: actions/upload-artifact@v4
+        with:
+          name: linkedin-screenshots
+          path: |
+            *.png
+          retention-days: 7
