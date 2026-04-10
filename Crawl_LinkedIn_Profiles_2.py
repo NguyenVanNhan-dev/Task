@@ -78,7 +78,7 @@ def connect_google_sheet():
 # --- 3. LOGIN ---
 def login_with_cookies(driver):
     driver.get("https://www.linkedin.com")
-    time.sleep(3)
+    time.sleep(8)
     
     # Lấy cookies từ GitHub Secret (được truyền qua biến môi trường)
     cookies_json = os.environ.get("LINKEDIN_COOKIES")
@@ -131,7 +131,7 @@ def crawl_profile(driver, raw_url):
         driver.get(url)
 
         print(f"--- Processing: {url}")
-        time.sleep(random.uniform(10, 16))
+        time.sleep(random.uniform(15, 22))
         page_source = driver.page_source
         if "This page doesn’t exist" in page_source or "Page not found" in driver.title:
             print(f"⚠️ Cảnh báo: Hồ sơ không tồn tại (404).")
@@ -146,8 +146,8 @@ def crawl_profile(driver, raw_url):
 
         # Cuộn trang nhiều lần để kích hoạt dữ liệu ẩn
         for _ in range(4):
-            driver.execute_script("window.scrollBy(0, 500);")
-            time.sleep(1.5)
+            driver.execute_script("window.scrollBy(0, 600);")
+            time.sleep(2)
 
         if any(x in driver.current_url for x in ["login", "authwall", "checkpoint", "challenge"]):
             print("Debug: Auth wall detected.")
@@ -278,7 +278,7 @@ def main():
             print("reached max limit")
             break
 
-        time.sleep(random.randint(15, 28))
+        time.sleep(random.randint(20, 35))
 
     driver.quit()
 
