@@ -64,6 +64,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linkedin-screenshots
-          path: |
-            *.png
+          path: ./*.png
           retention-days: 7
