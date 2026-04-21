@@ -30,6 +30,8 @@ jobs:
 
       - name: Run Script
         env:
+          LINKEDIN_USER: ${{ secrets.LINKEDIN_USER }}
+          LINKEDIN_PASS: ${{ secrets.LINKEDIN_PASS }}
           LINKEDIN_COOKIES: ${{ secrets.LINKEDIN_COOKIES }}
         run: |
           xvfb-run -a python Crawl_LinkedIn_Profiles_2.py
