@@ -27,6 +27,9 @@ INPUT_TAB_NAME = "Sheet1"
 # TÀI KHOẢN
 USERNAME = os.environ.get("LINKEDIN_USER")
 PASSWORD = os.environ.get("LINKEDIN_PASS")
+if not USERNAME or not PASSWORD:
+    print("❌ LỖI: Không tìm thấy LINKEDIN_USER hoặc LINKEDIN_PASS trong môi trường!")
+    # Đừng chạy tiếp nếu thiếu thông tin quan trọng
 COOKIES_FILE = 'linkedin_cookies.pkl'
 CREDENTIALS_FILE = 'linkedin_credentials.pkl'
 # --- 1. SETUP DRIVER ---
