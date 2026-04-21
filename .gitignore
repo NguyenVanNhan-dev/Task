@@ -1,0 +1,8 @@
+# Không lưu các tệp lưu trữ thông tin đăng nhập và cookies
+linkedin_cookies.pkl
+linkedin_credentials.pkl
+authwall_*.png
+*.log
+
+# Nếu bạn dùng biến môi trường trong tệp .env
+.env
