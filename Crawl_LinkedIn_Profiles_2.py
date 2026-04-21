@@ -48,11 +48,25 @@ def setup_driver():
 # --- 2. KẾT NỐI GOOGLE SHEET ---
 def connect_google_sheet():
     try:
-        auth.authenticate_user()
-        creds, _ = default()
+        scope = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+
+        creds = Credentials.from_service_account_file(
+    "vivid-layout-492502-m1-ec6b14b41e28.json",
+    scopes=scope
+)
+
         gc = gspread.authorize(creds)
-        sh = gc.open_by_url(SHEET_ID_OR_URL) if "http" in SHEET_ID_OR_URL else gc.open_by_key(SHEET_ID_OR_URL)
+
+        sh = gc.open_by_url(SHEET_ID_OR_URL) \
+            if "http" in SHEET_ID_OR_URL \
+            else gc.open_by_key(SHEET_ID_OR_URL)
+
+        print("✅ Kết nối Google Sheet thành công")
         return sh
+
     except Exception as e:
         print(f"⚠️ Lỗi kết nối Sheet: {e}")
         return None
