@@ -7,7 +7,7 @@ import gspread
 import re
 import json
 from google.auth import default
-from google.auth import auth
+from google import auth
 
 from IPython.display import Image, display
 
