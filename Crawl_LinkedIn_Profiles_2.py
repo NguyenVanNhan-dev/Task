@@ -5,6 +5,7 @@ import pickle
 import random
 import gspread
 import re
+import subprocess
 import json
 from google.auth import default
 from google import auth
@@ -18,6 +19,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.os_manager import ChromeType
 from google.oauth2.service_account import Credentials
 import gspread
 # --- CẤU HÌNH ---
@@ -27,24 +29,39 @@ INPUT_TAB_NAME = "Sheet1"
 # TÀI KHOẢN
 USERNAME = os.environ.get("LINKEDIN_USER")
 PASSWORD = os.environ.get("LINKEDIN_PASS")
-if not USERNAME or not PASSWORD:
-    print("❌ LỖI: Không tìm thấy LINKEDIN_USER hoặc LINKEDIN_PASS trong môi trường!")
-    # Đừng chạy tiếp nếu thiếu thông tin quan trọng
 COOKIES_FILE = 'linkedin_cookies.pkl'
 CREDENTIALS_FILE = 'linkedin_credentials.pkl'
+BASE_DIR = os.getcwd()
+
+# --- TÌM CHROME ---
+def get_chrome_path():
+    paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expanduser(r"~\AppData\Local\Google\Chrome\Application\chrome.exe"),
+        os.path.expanduser(r"~\AppData\Local\Chromium\Application\chrome.exe"),
+    ]
+    for path in paths:
+        if os.path.exists(path):
+            return path
+    return None
+
 # --- 1. SETUP DRIVER ---
-def setup_driver():
+def setup_driver(account_code):
+    profile_dir = os.path.join(BASE_DIR, "profiles", account_code)
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless=new')
+    options.binary_location = get_chrome_path()  # 🔥 thêm dòng này
+
+    options.add_argument(f"--user-data-dir={profile_dir}")
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--lang=en-US")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36")
 
     service = Service(ChromeDriverManager().install())
+
     driver = webdriver.Chrome(service=service, options=options)
     return driver
 
@@ -74,72 +91,25 @@ def connect_google_sheet():
         print(f"⚠️ Lỗi kết nối Sheet: {e}")
         return None
 # --- 3. LOGIN ---
-def login_linkedin(driver):
-    """
-    Hàm đăng nhập LinkedIn tổng hợp:
-    Kiểm tra Cookies -> Đăng nhập Password -> Xử lý OTP -> Lưu lại Cookies mới.
-    """
-    print("INFO: Đang truy cập LinkedIn...")
-    driver.get("https://www.linkedin.com/login")
-    time.sleep(2)
+def manual_login(account_code):
+    profile_dir = os.path.join(BASE_DIR, "profiles", account_code)
+    os.makedirs(profile_dir, exist_ok=True)
 
-    # 1. Kiểm tra và tải Cookies nếu trùng khớp thông tin đăng nhập
-    credentials_changed = True
-    if os.path.exists(CREDENTIALS_FILE):
-        with open(CREDENTIALS_FILE, "rb") as f:
-            old_creds = pickle.load(f)
-            if old_creds.get('username') == USERNAME and old_creds.get('password') == PASSWORD:
-                credentials_changed = False
-
-    if not credentials_changed and os.path.exists(COOKIES_FILE):
-        print("INFO: Đang thử đăng nhập bằng Cookies...")
-        with open(COOKIES_FILE, "rb") as f:
-            for cookie in pickle.load(f):
-                try: driver.add_cookie(cookie)
-                except: pass
-        driver.refresh()
-        time.sleep(5)
-
-        if "feed" in driver.current_url or driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
-            print("INFO: Đăng nhập thành công bằng Cookies!")
-            return True
-
-    # 2. Nếu Cookies thất bại hoặc đổi tài khoản -> Đăng nhập bằng Password
-    print("INFO: Tiến hành đăng nhập bằng tài khoản và mật khẩu...")
-    try:
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "username"))).send_keys(USERNAME)
-        driver.find_element(By.ID, "password").send_keys(PASSWORD)
-        driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        time.sleep(5)
-
-        # 3. Xử lý xác thực mã PIN (OTP) qua Email nếu LinkedIn yêu cầu
-        try:
-            # Kiểm tra xem có trường nhập mã pin không
-            pin_field = driver.find_elements(By.ID, "input__email_verification_pin")
-            if pin_field:
-                print("⚠️ CẢNH BÁO: LinkedIn yêu cầu mã xác thực từ Email!")
-                otp_code = input("Vui lòng nhập mã OTP từ Email của bạn: ")
-                pin_field[0].send_keys(otp_code)
-                driver.find_element(By.ID, "email-pin-submit-button").click()
-                time.sleep(5)
-        except Exception as e:
-            print(f"INFO: Không phát hiện yêu cầu OTP hoặc lỗi OTP: {e}")
-
-        # 4. Kiểm tra đăng nhập thành công và Lưu Cookies/Credentials
-        if "feed" in driver.current_url or driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
-            with open(COOKIES_FILE, "wb") as f:
-                pickle.dump(driver.get_cookies(), f)
-            with open(CREDENTIALS_FILE, "wb") as f:
-                pickle.dump({"username": USERNAME, "password": PASSWORD}, f)
-            print("INFO: Đăng nhập thành công và đã cập nhật Cookies mới!")
-            return True
-        else:
-            print("ERROR: Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản hoặc giao diện web.")
-            return False
-
-    except Exception as e:
-        print(f"ERROR: Lỗi trong quá trình đăng nhập: {e}")
+    chrome_path = get_chrome_path()
+    if not chrome_path:
+        print("❌ Không tìm thấy Chrome/Chromium!")
         return False
+
+    print(f"\n🚀 Mở Chrome để login LinkedIn cho: {account_code}")
+
+    cmd = f'"{chrome_path}" --user-data-dir="{profile_dir}" https://www.linkedin.com/login'
+    subprocess.Popen(cmd, shell=True)
+
+    print("👉 Login LinkedIn bằng tay (nhập OTP nếu có)")
+    print("👉 Sau khi login xong → TẮT TRÌNH DUYỆT rồi ENTER")
+    input()
+
+    return True
 
 # --- 4. CRAWL PROFILE (HÀM FIX TRIỆT ĐỂ) ---
 def crawl_profile(driver, raw_url):
@@ -250,8 +220,27 @@ def main():
     all_rows = ws.get_all_values()
     # all_rows[0] là header, dữ liệu bắt đầu từ index 1
 
-    driver = setup_driver()
-    if not login_linkedin(driver): return
+    account_code = input("Nhập mã account (VD: acc1): ").strip()
+    if not account_code:
+        print("❌ Không được để trống")
+        return
+
+    profile_dir = os.path.join(BASE_DIR, "profiles", account_code)
+
+    # 👉 Nếu chưa có profile → login tay
+    if not os.path.exists(profile_dir) or not os.listdir(profile_dir):
+        print("⚠️ Chưa có profile → cần login lần đầu")
+        manual_login(account_code)
+
+    # 👉 Dùng Selenium với profile đã login
+    driver = setup_driver(account_code)
+
+    print("🌐 Đang mở LinkedIn...")
+    driver.get("https://www.linkedin.com/feed/")
+    time.sleep(5)
+
+    print("✅ Đã vào LinkedIn thành công (không cần login lại)")
+
 
     # Chạy từ dòng thứ 2 (index 1)
     for i in range(1, len(all_rows)):
