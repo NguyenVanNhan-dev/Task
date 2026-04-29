@@ -25,30 +25,17 @@ SHEET_ID_OR_URL = 'https://docs.google.com/spreadsheets/d/1OhjIaXVwbO3x_Iu07h3s5
 INPUT_TAB_NAME = "Sheet1"
 
 # TÀI KHOẢN
-USERNAME = os.getenv("LINKEDIN_USER")
-PASSWORD = os.getenv("LINKEDIN_PASS")
-# Cấu hình đường dẫn
-BASE_DIR = os.getcwd()
-PROFILE_PATH = os.path.join(BASE_DIR, "profiles", "acc_linkedin")
-COOKIE_FILE = os.getenv("LINKEDIN_COOKIES")
-
-
-def get_driver(headless=False):
-    options = webdriver.ChromeOptions()
-    # Đường dẫn lưu Profile (giúp lưu trạng thái đăng nhập, cache...)
-    options.add_argument(f"--user-data-dir={PROFILE_PATH}")
-    if headless:
-        options.add_argument("--headless")
-    
-    driver = webdriver.Chrome(
-        service=Service(ChromeDriverManager().install()),
-        options=options
-    )
-    return driver
+USERNAME = os.environ.get("LINKEDIN_USER")
+PASSWORD = os.environ.get("LINKEDIN_PASS")
+if not USERNAME or not PASSWORD:
+    print("❌ LỖI: Không tìm thấy LINKEDIN_USER hoặc LINKEDIN_PASS trong môi trường!")
+    # Đừng chạy tiếp nếu thiếu thông tin quan trọng
+COOKIES_FILE = 'linkedin_cookies.pkl'
+CREDENTIALS_FILE = 'linkedin_credentials.pkl'
 # --- 1. SETUP DRIVER ---
 def setup_driver():
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless')
+    #options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument("--window-size=1920,1080")
@@ -86,66 +73,152 @@ def connect_google_sheet():
     except Exception as e:
         print(f"⚠️ Lỗi kết nối Sheet: {e}")
         return None
-
-# --- 3. LOGIN ---
-def load_cookies_from_env(driver):
-    import json
-    # Bước 1: Lấy dữ liệu từ GitHub Secrets
-    raw_cookies = os.getenv("LINKEDIN_COOKIES")
+def get_missive_linkedin_code():
+    # Lấy API Key từ GitHub Secrets
+    missive_api_key = os.environ.get("MISSIVE_API_KEY")
     
-    if not raw_cookies:
-        print("❌ LỖI: Không tìm thấy biến môi trường LINKEDIN_COOKIES.")
-        return False
+    if not missive_api_key:
+        print("❌ LỖI: Chưa cấu hình MISSIVE_API_KEY trong Secrets.")
+        return None
+
+    headers = {
+        "Authorization": f"Bearer {missive_api_key}",
+        "Content-Type": "application/json",
+    }
+    
+    # Chỉ lấy các hội thoại chưa đóng (active) để nhẹ data
+    params = {
+        "limit": 5,
+        "type": "shared" # Hoặc "personal" tùy vào loại tài khoản Missive của bạn
+    }
 
     try:
-        # Bước 2: Vào LinkedIn trước khi nạp cookie
-        print("🌐 Đang kết nối LinkedIn...")
-        driver.get("https://www.linkedin.com")
-        time.sleep(3)
+        print("📡 Đang gọi Missive API để lấy mã OTP...")
+        response = requests.get(
+            "https://public.missiveapp.com/v1/conversations", 
+            headers=headers, 
+            params=params
+        )
+
+        if response.status_code != 200:
+            print(f"❌ Lỗi API Missive: {response.status_code} - {response.text}")
+            return None
+
+        conversations = response.json().get("conversations", [])
         
-        # Bước 3: Giải mã JSON và nạp vào trình duyệt
-        cookies = json.loads(raw_cookies)
-        for cookie in cookies:
-            # Xóa các thuộc tính có thể gây lỗi nạp cookie
-            if 'sameSite' in cookie: del cookie['sameSite']
-            if 'expiry' in cookie: del cookie['expiry']
-            try:
-                driver.add_cookie(cookie)
-            except:
-                continue
-        
-        # Bước 4: Refresh để áp dụng cookie và kiểm tra trạng thái
-        driver.get("https://www.linkedin.com/feed/")
+        # Duyệt qua các hội thoại để tìm email từ LinkedIn
+        for conv in conversations:
+            subject = conv.get("latest_message_subject", "")
+            # LinkedIn thường gửi mail với tiêu đề: "Your LinkedIn verification code is 123456"
+            # Hoặc "123456 là mã xác minh LinkedIn của bạn"
+            
+            print(f"📩 Đang kiểm tra email: {subject}")
+
+            # Dùng Regex để tìm cụm 6 chữ số trong tiêu đề
+            match = re.search(r'\b\d{6}\b', subject)
+            if match:
+                code = match.group(0)
+                print(f"✅ Đã tìm thấy mã OTP: {code}")
+                return code
+
+        print("⏳ Chưa thấy email OTP mới từ LinkedIn...")
+        return None
+
+    except Exception as e:
+        print(f"❌ Lỗi kết nối API: {e}")
+        return None
+# --- 3. LOGIN ---
+def login_linkedin(driver):
+    """
+    Hàm đăng nhập LinkedIn tổng hợp:
+    Kiểm tra Cookies -> Đăng nhập Password -> Xử lý OTP -> Lưu lại Cookies mới.
+    """
+    print("INFO: Đang truy cập LinkedIn...")
+    driver.get("https://www.linkedin.com/login")
+    time.sleep(2)
+
+    # 1. Kiểm tra và tải Cookies nếu trùng khớp thông tin đăng nhập
+    credentials_changed = True
+    if os.path.exists(CREDENTIALS_FILE):
+        with open(CREDENTIALS_FILE, "rb") as f:
+            old_creds = pickle.load(f)
+            if old_creds.get('username') == USERNAME and old_creds.get('password') == PASSWORD:
+                credentials_changed = False
+
+    if not credentials_changed and os.path.exists(COOKIES_FILE):
+        print("INFO: Đang thử đăng nhập bằng Cookies...")
+        with open(COOKIES_FILE, "rb") as f:
+            for cookie in pickle.load(f):
+                try: driver.add_cookie(cookie)
+                except: pass
+        driver.refresh()
         time.sleep(5)
 
-        # Kiểm tra xem có thấy Avatar (đã login) hay không
-        if driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
-            print("✅ Đăng nhập thành công bằng Cookies từ Secrets!")
+        if "feed" in driver.current_url or driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
+            print("INFO: Đăng nhập thành công bằng Cookies!")
+            return True
+
+    # 2. Nếu Cookies thất bại hoặc đổi tài khoản -> Đăng nhập bằng Password
+    print("INFO: Tiến hành đăng nhập bằng tài khoản và mật khẩu...")
+    try:
+        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "username"))).send_keys(USERNAME)
+        driver.find_element(By.ID, "password").send_keys(PASSWORD)
+        driver.find_element(By.XPATH, "//button[@type='submit']").click()
+        time.sleep(5)
+
+        # --- 3. Xử lý xác thực mã PIN (OTP) tự động qua Missive API ---
+        try:
+            # Kiểm tra xem có trường nhập mã pin không (LinkedIn dùng ID này cho trang xác thực)
+            pin_field = driver.find_elements(By.ID, "input__email_verification_pin")
+            
+            if pin_field:
+                print("⚠️ CẢNH BÁO: LinkedIn yêu cầu mã xác thực từ Email!")
+                print("📡 Đang tự động quét mã OTP từ Missive API...")
+
+                otp_code = None
+                # Thử lấy mã 5 lần, mỗi lần cách nhau 10 giây để đợi mail về
+                for attempt in range(1, 6):
+                    print(f"🔄 Thử lấy mã lần {attempt}...")
+                    otp_code = get_missive_linkedin_code() # Gọi hàm dùng API Key của bạn
+                    
+                    if otp_code:
+                        print(f"✅ Đã tìm thấy mã OTP: {otp_code}")
+                        break
+                    
+                    if attempt < 5:
+                        time.sleep(10) # Đợi mail đổ về inbox
+                
+                if otp_code:
+                    pin_field[0].send_keys(otp_code)
+                    # Tìm nút submit (ID thường là email-pin-submit-button)
+                    try:
+                        driver.find_element(By.ID, "email-pin-submit-button").click()
+                        print("🚀 Đã điền mã và nhấn gửi!")
+                        time.sleep(5)
+                    except:
+                        print("❌ Không tìm thấy nút Submit OTP.")
+                else:
+                    print("🛑 LỖI: Đã thử 5 lần nhưng không lấy được mã OTP từ API.")
+                    # Bạn có thể chọn dừng chương trình hoặc chụp ảnh màn hình tại đây
+
+        except Exception as e:
+            print(f"INFO: Không phát hiện yêu cầu OTP hoặc lỗi xử lý: {e}")
+
+        # 4. Kiểm tra đăng nhập thành công và Lưu Cookies/Credentials
+        if "feed" in driver.current_url or driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
+            with open(COOKIES_FILE, "wb") as f:
+                pickle.dump(driver.get_cookies(), f)
+            with open(CREDENTIALS_FILE, "wb") as f:
+                pickle.dump({"username": USERNAME, "password": PASSWORD}, f)
+            print("INFO: Đăng nhập thành công và đã cập nhật Cookies mới!")
             return True
         else:
-            print("⚠️ Cookie hết hạn hoặc LinkedIn yêu cầu xác thực (Auth Wall).")
-            print("👉 HÀNH ĐỘNG: Bạn cần chạy code trên máy cá nhân để lấy Cookie mới, sau đó cập nhật lại GitHub Secret.")
+            print("ERROR: Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản hoặc giao diện web.")
             return False
 
     except Exception as e:
-        print(f"❌ Lỗi trong quá trình nạp cookie: {e}")
+        print(f"ERROR: Lỗi trong quá trình đăng nhập: {e}")
         return False
-
-def load_cookies_from_file(driver):
-    if not os.path.exists(COOKIE_FILE):
-        return False
-    
-    driver.get("https://www.linkedin.com") # Phải vào domain trước khi add cookie
-    with open(COOKIE_FILE, "r", encoding="utf-8") as f:
-        cookies = json.load(f)
-        for cookie in cookies:
-            try:
-                # Xóa sameSite nếu có để tránh lỗi
-                if 'sameSite' in cookie: del cookie['sameSite']
-                driver.add_cookie(cookie)
-            except: pass
-    driver.refresh()
-    return True
 
 # --- 4. CRAWL PROFILE (HÀM FIX TRIỆT ĐỂ) ---
 def crawl_profile(driver, raw_url):
@@ -256,84 +329,71 @@ def main():
     all_rows = ws.get_all_values()
     # all_rows[0] là header, dữ liệu bắt đầu từ index 1
 
+    driver = setup_driver()
+    if not login_linkedin(driver): return
 
-    driver = get_driver(headless=False)
+    # Chạy từ dòng thứ 2 (index 1)
+    for i in range(1, len(all_rows)):
+        row_data = all_rows[i]
+        url = row_data[0].strip() if len(row_data) > 0 else ""
 
-    try:
-        # Thử load cookie cũ nếu có
-        if os.path.exists(COOKIE_FILE):
-            print("INFO: Tìm thấy file cookie, đang nạp...")
-            load_cookies_from_file(driver)
-            time.sleep(3)
+        # 1. KIỂM TRA URL TRỐNG
+        if not url or "linkedin.com/in/" not in url:
+            print(f"⏩ Dòng {i+1}: Bỏ qua do URL trống hoặc không hợp lệ.")
+            continue
 
-        # Kiểm tra lại, nếu vẫn chưa login thì bắt đầu quy trình login tay + lưu
-        success = load_cookies_from_env(driver)
-        
-        if success:
-            print("🚀 BẮT ĐẦU CRAWL DỮ LIỆU...")
-            # Chạy từ dòng thứ 2 (index 1)
-        for i in range(1, len(all_rows)):
-            row_data = all_rows[i]
-            url = row_data[0].strip() if len(row_data) > 0 else ""
-
-            # 1. KIỂM TRA URL TRỐNG
-            if not url or "linkedin.com/in/" not in url:
-                print(f"⏩ Dòng {i+1}: Bỏ qua do URL trống hoặc không hợp lệ.")
+        # 2. KIỂM TRA DỮ LIỆU ĐÃ CÓ CHƯA (Cột G - Status thường là index 6)
+        # Giả sử: Cột A(0):URL, B(1):Name, ..., G(6):Status
+        if len(row_data) >= 7:
+            status_existing = row_data[6]
+            if status_existing in ["Success", "NOT_FOUND", "No Profile"]:
+                print(f"⏭️ Dòng {i+1}: Đã có dữ liệu ({status_existing}), bỏ qua.")
                 continue
 
-            # 2. KIỂM TRA DỮ LIỆU ĐÃ CÓ CHƯA (Cột G - Status thường là index 6)
-            # Giả sử: Cột A(0):URL, B(1):Name, ..., G(6):Status
-            if len(row_data) >= 7:
-                status_existing = row_data[6]
-                if status_existing in ["Success", "NOT_FOUND", "No Profile"]:
-                    print(f"⏭️ Dòng {i+1}: Đã có dữ liệu ({status_existing}), bỏ qua.")
-                    continue
+        # Nếu vượt qua các kiểm tra trên thì mới tiến hành Crawl
+        print(f"🔄 Đang xử lý dòng {i+1}: {url}")
+        data, status = crawl_profile(driver, url)
+        row = i + 1
+        if data and data.get('Name') == "No Profile":
+            # === TRƯỜNG HỢP PROFILE KHÔNG TỒN TẠI ===
+            ws.update(range_name=f"B{row}:G{row}", values=[[
+                "No Profile", "", "", "", "", ""
+            ]])
+            print(f"   ⚠️ Profile không tồn tại (NOT_FOUND)")
 
-            # Nếu vượt qua các kiểm tra trên thì mới tiến hành Crawl
-            print(f"🔄 Đang xử lý dòng {i+1}: {url}")
-            data, status = crawl_profile(driver, url)
-            row = i + 1
-            if data and data.get('Name') == "No Profile":
-                # === TRƯỜNG HỢP PROFILE KHÔNG TỒN TẠI ===
-                ws.update(range_name=f"B{row}:G{row}", values=[[
-                    "No Profile", "", "", "", "", ""
-                ]])
-                print(f"   ⚠️ Profile không tồn tại (NOT_FOUND)")
+        elif data and data.get('Name') and data['Name'] != "No Profile":
+            # === THÀNH CÔNG ===
+            ws.update(range_name=f"B{row}:G{row}", values=[[
+                data['Name'],
+                data['Title'],
+                data['Location'],
+                data['Connection'],
+                data['Company'],
+                "Success"
+            ]])
+            print(f"   ✅ OK: {data['Name']}")
 
-            elif data and data.get('Name') and data['Name'] != "No Profile":
-                # === THÀNH CÔNG ===
-                ws.update(range_name=f"B{row}:G{row}", values=[[
-                    data['Name'],
-                    data['Title'],
-                    data['Location'],
-                    data['Connection'],
-                    data['Company'],
-                    "Success"
-                ]])
-                print(f"   ✅ OK: {data['Name']}")
+        else:
+            # === LỖI KHÁC ===
+            error_msg = f"Error: {status}"
+            ws.update(range_name=f"B{row}:G{row}", values=[[
+                "", "", "", "", "", error_msg
+            ]])
+            print(f"   ❌ {error_msg}")
 
-            else:
-                # === LỖI KHÁC ===
-                error_msg = f"Error: {status}"
-                ws.update(range_name=f"B{row}:G{row}", values=[[
-                    "", "", "", "", "", error_msg
-                ]])
-                print(f"   ❌ {error_msg}")
-
-                if status == "AUTH_WALL":
-                    print("🛑 Dừng do Auth Wall!")
-                    break
-
-            count +=1
-            if count >= MAX_PROFILE:
-                print("reached max limit")
+            if status == "AUTH_WALL":
+                print("🛑 Dừng do Auth Wall!")
                 break
 
-            time.sleep(random.randint(3, 6))
-            
-    finally:
-        time.sleep(5)
-        driver.quit()
+        count +=1
+        if count >= MAX_PROFILE:
+            print("reached max limit")
+            break
+
+        time.sleep(random.randint(3, 6))
+
+    driver.quit()
+
 if __name__ == "__main__":
     main()
     print("✅ Done!")
