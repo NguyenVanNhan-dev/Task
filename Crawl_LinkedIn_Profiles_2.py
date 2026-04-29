@@ -34,7 +34,6 @@ BASE_DIR = os.getcwd()
 PROFILE_PATH = os.path.join(BASE_DIR, "profiles", "acc_linkedin")
 COOKIE_FILE = os.getenv("LINKEDIN_COOKIES")
 
-os.makedirs(os.path.dirname(COOKIE_FILE), exist_ok=True)
 
 def get_driver(headless=False):
     options = webdriver.ChromeOptions()
