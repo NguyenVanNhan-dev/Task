@@ -32,7 +32,7 @@ CREDENTIALS_FILE = 'linkedin_credentials.pkl'
 # Cấu hình đường dẫn
 BASE_DIR = os.getcwd()
 PROFILE_PATH = os.path.join(BASE_DIR, "profiles", "acc_linkedin")
-COOKIE_FILE = os.os.getenv("LINKEDIN_COOKIES")
+COOKIE_FILE = os.getenv("LINKEDIN_COOKIES")
 
 os.makedirs(os.path.dirname(COOKIE_FILE), exist_ok=True)
 
