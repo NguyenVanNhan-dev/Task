@@ -324,6 +324,9 @@ def main():
 
     # Chạy từ dòng thứ 2 (index 1)
     for i in range(1, len(all_rows)):
+        if count >= MAX_PROFILE:
+            print("reached max limit")
+            break
         row_data = all_rows[i]
         url = row_data[0].strip() if len(row_data) > 0 else ""
 
@@ -376,9 +379,7 @@ def main():
                 break
 
         count +=1
-        if count >= MAX_PROFILE:
-            print("reached max limit")
-            break
+
 
         time.sleep(random.randint(3, 6))
 
