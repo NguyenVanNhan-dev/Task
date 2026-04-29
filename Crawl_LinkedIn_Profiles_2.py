@@ -32,7 +32,7 @@ CREDENTIALS_FILE = 'linkedin_credentials.pkl'
 # Cấu hình đường dẫn
 BASE_DIR = os.getcwd()
 PROFILE_PATH = os.path.join(BASE_DIR, "profiles", "acc_linkedin")
-COOKIE_FILE = os.path.join(BASE_DIR, "cookies", "linkedin_cookie.json")
+COOKIE_FILE = os.os.getenv("LINKEDIN_COOKIES")
 
 os.makedirs(os.path.dirname(COOKIE_FILE), exist_ok=True)
 
@@ -51,7 +51,7 @@ def get_driver(headless=False):
 # --- 1. SETUP DRIVER ---
 def setup_driver():
     options = webdriver.ChromeOptions()
-    options.add_argument('--headless=new')
+    options.add_argument('--headless')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument("--window-size=1920,1080")
