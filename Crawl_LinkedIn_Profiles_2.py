@@ -27,8 +27,6 @@ INPUT_TAB_NAME = "Sheet1"
 # TÀI KHOẢN
 USERNAME = os.getenv("LINKEDIN_USER")
 PASSWORD = os.getenv("LINKEDIN_PASS")
-COOKIES_FILE = 'linkedin_cookies.pkl'
-CREDENTIALS_FILE = 'linkedin_credentials.pkl'
 # Cấu hình đường dẫn
 BASE_DIR = os.getcwd()
 PROFILE_PATH = os.path.join(BASE_DIR, "profiles", "acc_linkedin")
