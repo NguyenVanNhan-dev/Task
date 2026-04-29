@@ -30,6 +30,7 @@ jobs:
 
       - name: Run Script
         env:
+          MISSIVE_API_KEY: ${{ secrets.MISSIVE_API_KEY }}
           LINKEDIN_USER: ${{ secrets.LINKEDIN_USER }}
           LINKEDIN_PASS: ${{ secrets.LINKEDIN_PASS }}
           LINKEDIN_COOKIES: ${{ secrets.LINKEDIN_COOKIES }}
