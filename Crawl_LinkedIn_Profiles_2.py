@@ -75,53 +75,43 @@ def connect_google_sheet():
         print(f"⚠️ Lỗi kết nối Sheet: {e}")
         return None
 def get_missive_linkedin_code():
-    # Lấy API Key từ GitHub Secrets
-    missive_api_key = os.environ.get("MISSIVE_API_KEY")
-    
-    if not missive_api_key:
-        print("❌ LỖI: Chưa cấu hình MISSIVE_API_KEY trong Secrets.")
-        return None
-
-    headers = {
-        "Authorization": f"Bearer {missive_api_key}",
+    MISSIVE_API_KEY = os.environ.get("MISSIVE_API_KEY")
+    HEADERS = {
+        "Authorization": f"Bearer {MISSIVE_API_KEY}",
         "Content-Type": "application/json",
     }
-    
-    # Chỉ lấy các hội thoại chưa đóng (active) để nhẹ data
-    params = {
-        "limit": 10,
-    }
+    # Fix lỗi 400 bằng cách lấy inbox cá nhân hoặc shared
+    # Bạn có thể thử thay "personal" bằng "shared" nếu không ra kết quả
+    PARAMS = {"limmit": 20, "inbox": "true"}
 
     try:
-        print("📡 Đang gọi Missive API để lấy mã OTP...")
         response = requests.get(
             "https://public.missiveapp.com/v1/conversations", 
-            headers=headers, 
-            params=params
+            headers=HEADERS, 
+            params=PARAMS
         )
-
+        
         if response.status_code != 200:
-            print(f"❌ Lỗi API Missive: {response.status_code} - {response.text}")
             return None
 
         conversations = response.json().get("conversations", [])
         
-        # Duyệt qua các hội thoại để tìm email từ LinkedIn
-        for conv in conversations:
-            subject = conv.get("latest_message_subject", "")
-            # LinkedIn thường gửi mail với tiêu đề: "Your LinkedIn verification code is 123456"
-            # Hoặc "123456 là mã xác minh LinkedIn của bạn"
+        for c in conversations:
+            # 1. Kiểm tra xem có đúng là email từ LinkedIn không
+            authors = c.get("authors", [])
+            is_linkedin = any(a.get("name") == "LinkedIn" for a in authors)
             
-            print(f"📩 Đang kiểm tra email: {subject}")
-
-            # Dùng Regex để tìm cụm 6 chữ số trong tiêu đề
-            match = re.search(r'\b\d{6}\b', subject)
-            if match:
-                code = match.group(0)
-                print(f"✅ Đã tìm thấy mã OTP: {code}")
-                return code
-
-        print("⏳ Chưa thấy email OTP mới từ LinkedIn...")
+            if is_linkedin:
+                subject = c.get("latest_message_subject", "")
+                # 2. Dùng Regex lấy đúng 6 số (an toàn hơn split)
+                import re
+                match = re.search(r'\b\d{6}\b', subject)
+                if match:
+                    return match.group(0)
+                    
+        return None
+    except Exception as e:
+        print(f"Lỗi: {e}")
         return None
 
     except Exception as e:
