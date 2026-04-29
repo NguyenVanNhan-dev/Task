@@ -88,34 +88,48 @@ def connect_google_sheet():
         return None
 
 # --- 3. LOGIN ---
-def login_and_save_cookie(driver):
-    # Bước 1: Thử vào thẳng trang Feed
-    driver.get("https://www.linkedin.com/feed/")
-    time.sleep(3)
+def load_cookies_from_env(driver):
+    import json
+    # Bước 1: Lấy dữ liệu từ GitHub Secrets
+    raw_cookies = os.getenv("LINKEDIN_COOKIES")
+    
+    if not raw_cookies:
+        print("❌ LỖI: Không tìm thấy biến môi trường LINKEDIN_COOKIES.")
+        return False
 
-    # Bước 2: Kiểm tra xem đã login chưa (tìm avatar hoặc thanh search)
-    if driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
-        print("✅ Đã đăng nhập sẵn từ Profile/Cookie!")
-    else:
-        # Bước 3: Nếu chưa login, yêu cầu login tay
-        print("⚠️ Chưa đăng nhập. Đang mở trang Login...")
-        driver.get("https://www.linkedin.com/login")
+    try:
+        # Bước 2: Vào LinkedIn trước khi nạp cookie
+        print("🌐 Đang kết nối LinkedIn...")
+        driver.get("https://www.linkedin.com")
+        time.sleep(3)
         
-        print("👉 HÀNH ĐỘNG: Bạn hãy tự nhập User/Pass/OTP trên trình duyệt.")
-        print("👉 Sau khi thấy trang Feed hiện ra, hãy quay lại đây nhấn ENTER.")
-        input("Nhấn ENTER sau khi đã login thành công để trích xuất Cookie...")
+        # Bước 3: Giải mã JSON và nạp vào trình duyệt
+        cookies = json.loads(raw_cookies)
+        for cookie in cookies:
+            # Xóa các thuộc tính có thể gây lỗi nạp cookie
+            if 'sameSite' in cookie: del cookie['sameSite']
+            if 'expiry' in cookie: del cookie['expiry']
+            try:
+                driver.add_cookie(cookie)
+            except:
+                continue
         
-        # Kiểm tra lại sau khi nhấn Enter
-        if not driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
-            print("❌ Vẫn chưa thấy trang Feed. Lưu cookie thất bại!")
+        # Bước 4: Refresh để áp dụng cookie và kiểm tra trạng thái
+        driver.get("https://www.linkedin.com/feed/")
+        time.sleep(5)
+
+        # Kiểm tra xem có thấy Avatar (đã login) hay không
+        if driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
+            print("✅ Đăng nhập thành công bằng Cookies từ Secrets!")
+            return True
+        else:
+            print("⚠️ Cookie hết hạn hoặc LinkedIn yêu cầu xác thực (Auth Wall).")
+            print("👉 HÀNH ĐỘNG: Bạn cần chạy code trên máy cá nhân để lấy Cookie mới, sau đó cập nhật lại GitHub Secret.")
             return False
 
-    # Bước 4: Trích xuất và lưu Cookie ra file JSON
-    cookies = driver.get_cookies()
-    with open(COOKIE_FILE, "w", encoding="utf-8") as f:
-        json.dump(cookies, f, indent=2)
-    print(f"✅ Đã trích xuất và lưu Cookie mới tại: {COOKIE_FILE}")
-    return True
+    except Exception as e:
+        print(f"❌ Lỗi trong quá trình nạp cookie: {e}")
+        return False
 
 def load_cookies_from_file(driver):
     if not os.path.exists(COOKIE_FILE):
@@ -253,7 +267,7 @@ def main():
             time.sleep(3)
 
         # Kiểm tra lại, nếu vẫn chưa login thì bắt đầu quy trình login tay + lưu
-        success = login_and_save_cookie(driver)
+        success = load_cookies_from_env(driver)
         
         if success:
             print("🚀 BẮT ĐẦU CRAWL DỮ LIỆU...")
