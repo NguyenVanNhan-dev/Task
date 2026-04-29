@@ -25,8 +25,8 @@ SHEET_ID_OR_URL = 'https://docs.google.com/spreadsheets/d/1OhjIaXVwbO3x_Iu07h3s5
 INPUT_TAB_NAME = "Sheet1"
 
 # TÀI KHOẢN
-USERNAME = "ray.lead@sam-foundation.org"
-PASSWORD = "passnotE@1234"
+USERNAME = os.getenv("LINKEDIN_USER")
+PASSWORD = os.getenv("LINKEDIN_PASS")
 COOKIES_FILE = 'linkedin_cookies.pkl'
 CREDENTIALS_FILE = 'linkedin_credentials.pkl'
 # Cấu hình đường dẫn
