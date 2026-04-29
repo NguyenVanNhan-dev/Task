@@ -89,8 +89,7 @@ def get_missive_linkedin_code():
     
     # Chỉ lấy các hội thoại chưa đóng (active) để nhẹ data
     params = {
-        "limit": 5,
-        "type": "shared" # Hoặc "personal" tùy vào loại tài khoản Missive của bạn
+        "limit": 10,
     }
 
     try:
