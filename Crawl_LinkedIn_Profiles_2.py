@@ -151,7 +151,7 @@ def login_linkedin(driver):
     # 2. Nếu Cookies thất bại hoặc đổi tài khoản -> Đăng nhập bằng Password
     print("INFO: Tiến hành đăng nhập bằng tài khoản và mật khẩu...")
     try:
-        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.ID, "username"))).send_keys(USERNAME)
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "username"))).send_keys(USERNAME)
         driver.find_element(By.ID, "password").send_keys(PASSWORD)
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
         time.sleep(5)
