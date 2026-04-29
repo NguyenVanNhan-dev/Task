@@ -5,7 +5,6 @@ import pickle
 import random
 import gspread
 import re
-import subprocess
 import json
 from google.auth import default
 from google import auth
@@ -19,7 +18,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
-from webdriver_manager.core.os_manager import ChromeType
 from google.oauth2.service_account import Credentials
 import gspread
 # --- CẤU HÌNH ---
@@ -27,41 +25,42 @@ SHEET_ID_OR_URL = 'https://docs.google.com/spreadsheets/d/1OhjIaXVwbO3x_Iu07h3s5
 INPUT_TAB_NAME = "Sheet1"
 
 # TÀI KHOẢN
-USERNAME = os.environ.get("LINKEDIN_USER")
-PASSWORD = os.environ.get("LINKEDIN_PASS")
+USERNAME = "ray.lead@sam-foundation.org"
+PASSWORD = "passnotE@1234"
 COOKIES_FILE = 'linkedin_cookies.pkl'
 CREDENTIALS_FILE = 'linkedin_credentials.pkl'
+# Cấu hình đường dẫn
 BASE_DIR = os.getcwd()
+PROFILE_PATH = os.path.join(BASE_DIR, "profiles", "acc_linkedin")
+COOKIE_FILE = os.path.join(BASE_DIR, "cookies", "linkedin_cookie.json")
 
-# --- TÌM CHROME ---
-def get_chrome_path():
-    paths = [
-        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-        os.path.expanduser(r"~\AppData\Local\Google\Chrome\Application\chrome.exe"),
-        os.path.expanduser(r"~\AppData\Local\Chromium\Application\chrome.exe"),
-    ]
-    for path in paths:
-        if os.path.exists(path):
-            return path
-    return None
+os.makedirs(os.path.dirname(COOKIE_FILE), exist_ok=True)
 
-# --- 1. SETUP DRIVER ---
-def setup_driver(account_code):
-    profile_dir = os.path.join(BASE_DIR, "profiles", account_code)
+def get_driver(headless=False):
     options = webdriver.ChromeOptions()
-    options.binary_location = get_chrome_path()  # 🔥 thêm dòng này
-
-    options.add_argument(f"--user-data-dir={profile_dir}")
+    # Đường dẫn lưu Profile (giúp lưu trạng thái đăng nhập, cache...)
+    options.add_argument(f"--user-data-dir={PROFILE_PATH}")
+    if headless:
+        options.add_argument("--headless")
+    
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()),
+        options=options
+    )
+    return driver
+# --- 1. SETUP DRIVER ---
+def setup_driver():
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless=new')
     options.add_argument('--no-sandbox')
     options.add_argument('--disable-dev-shm-usage')
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--lang=en-US")
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36")
 
     service = Service(ChromeDriverManager().install())
-
     driver = webdriver.Chrome(service=service, options=options)
     return driver
 
@@ -90,25 +89,51 @@ def connect_google_sheet():
     except Exception as e:
         print(f"⚠️ Lỗi kết nối Sheet: {e}")
         return None
+
 # --- 3. LOGIN ---
-def manual_login(account_code):
-    profile_dir = os.path.join(BASE_DIR, "profiles", account_code)
-    os.makedirs(profile_dir, exist_ok=True)
+def login_and_save_cookie(driver):
+    # Bước 1: Thử vào thẳng trang Feed
+    driver.get("https://www.linkedin.com/feed/")
+    time.sleep(3)
 
-    chrome_path = get_chrome_path()
-    if not chrome_path:
-        print("❌ Không tìm thấy Chrome/Chromium!")
+    # Bước 2: Kiểm tra xem đã login chưa (tìm avatar hoặc thanh search)
+    if driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
+        print("✅ Đã đăng nhập sẵn từ Profile/Cookie!")
+    else:
+        # Bước 3: Nếu chưa login, yêu cầu login tay
+        print("⚠️ Chưa đăng nhập. Đang mở trang Login...")
+        driver.get("https://www.linkedin.com/login")
+        
+        print("👉 HÀNH ĐỘNG: Bạn hãy tự nhập User/Pass/OTP trên trình duyệt.")
+        print("👉 Sau khi thấy trang Feed hiện ra, hãy quay lại đây nhấn ENTER.")
+        input("Nhấn ENTER sau khi đã login thành công để trích xuất Cookie...")
+        
+        # Kiểm tra lại sau khi nhấn Enter
+        if not driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
+            print("❌ Vẫn chưa thấy trang Feed. Lưu cookie thất bại!")
+            return False
+
+    # Bước 4: Trích xuất và lưu Cookie ra file JSON
+    cookies = driver.get_cookies()
+    with open(COOKIE_FILE, "w", encoding="utf-8") as f:
+        json.dump(cookies, f, indent=2)
+    print(f"✅ Đã trích xuất và lưu Cookie mới tại: {COOKIE_FILE}")
+    return True
+
+def load_cookies_from_file(driver):
+    if not os.path.exists(COOKIE_FILE):
         return False
-
-    print(f"\n🚀 Mở Chrome để login LinkedIn cho: {account_code}")
-
-    cmd = f'"{chrome_path}" --user-data-dir="{profile_dir}" https://www.linkedin.com/login'
-    subprocess.Popen(cmd, shell=True)
-
-    print("👉 Login LinkedIn bằng tay (nhập OTP nếu có)")
-    print("👉 Sau khi login xong → TẮT TRÌNH DUYỆT rồi ENTER")
-    input()
-
+    
+    driver.get("https://www.linkedin.com") # Phải vào domain trước khi add cookie
+    with open(COOKIE_FILE, "r", encoding="utf-8") as f:
+        cookies = json.load(f)
+        for cookie in cookies:
+            try:
+                # Xóa sameSite nếu có để tránh lỗi
+                if 'sameSite' in cookie: del cookie['sameSite']
+                driver.add_cookie(cookie)
+            except: pass
+    driver.refresh()
     return True
 
 # --- 4. CRAWL PROFILE (HÀM FIX TRIỆT ĐỂ) ---
@@ -220,90 +245,84 @@ def main():
     all_rows = ws.get_all_values()
     # all_rows[0] là header, dữ liệu bắt đầu từ index 1
 
-    account_code = input("Nhập mã account (VD: acc1): ").strip()
-    if not account_code:
-        print("❌ Không được để trống")
-        return
 
-    profile_dir = os.path.join(BASE_DIR, "profiles", account_code)
+    driver = get_driver(headless=False)
 
-    # 👉 Nếu chưa có profile → login tay
-    if not os.path.exists(profile_dir) or not os.listdir(profile_dir):
-        print("⚠️ Chưa có profile → cần login lần đầu")
-        manual_login(account_code)
+    try:
+        # Thử load cookie cũ nếu có
+        if os.path.exists(COOKIE_FILE):
+            print("INFO: Tìm thấy file cookie, đang nạp...")
+            load_cookies_from_file(driver)
+            time.sleep(3)
 
-    # 👉 Dùng Selenium với profile đã login
-    driver = setup_driver(account_code)
+        # Kiểm tra lại, nếu vẫn chưa login thì bắt đầu quy trình login tay + lưu
+        success = login_and_save_cookie(driver)
+        
+        if success:
+            print("🚀 BẮT ĐẦU CRAWL DỮ LIỆU...")
+            # Chạy từ dòng thứ 2 (index 1)
+        for i in range(1, len(all_rows)):
+            row_data = all_rows[i]
+            url = row_data[0].strip() if len(row_data) > 0 else ""
 
-    print("🌐 Đang mở LinkedIn...")
-    driver.get("https://www.linkedin.com/feed/")
-    time.sleep(5)
-
-    print("✅ Đã vào LinkedIn thành công (không cần login lại)")
-
-
-    # Chạy từ dòng thứ 2 (index 1)
-    for i in range(1, len(all_rows)):
-        row_data = all_rows[i]
-        url = row_data[0].strip() if len(row_data) > 0 else ""
-
-        # 1. KIỂM TRA URL TRỐNG
-        if not url or "linkedin.com/in/" not in url:
-            print(f"⏩ Dòng {i+1}: Bỏ qua do URL trống hoặc không hợp lệ.")
-            continue
-
-        # 2. KIỂM TRA DỮ LIỆU ĐÃ CÓ CHƯA (Cột G - Status thường là index 6)
-        # Giả sử: Cột A(0):URL, B(1):Name, ..., G(6):Status
-        if len(row_data) >= 7:
-            status_existing = row_data[6]
-            if status_existing in ["Success", "NOT_FOUND", "No Profile"]:
-                print(f"⏭️ Dòng {i+1}: Đã có dữ liệu ({status_existing}), bỏ qua.")
+            # 1. KIỂM TRA URL TRỐNG
+            if not url or "linkedin.com/in/" not in url:
+                print(f"⏩ Dòng {i+1}: Bỏ qua do URL trống hoặc không hợp lệ.")
                 continue
 
-        # Nếu vượt qua các kiểm tra trên thì mới tiến hành Crawl
-        print(f"🔄 Đang xử lý dòng {i+1}: {url}")
-        data, status = crawl_profile(driver, url)
-        row = i + 1
-        if data and data.get('Name') == "No Profile":
-            # === TRƯỜNG HỢP PROFILE KHÔNG TỒN TẠI ===
-            ws.update(range_name=f"B{row}:G{row}", values=[[
-                "No Profile", "", "", "", "", ""
-            ]])
-            print(f"   ⚠️ Profile không tồn tại (NOT_FOUND)")
+            # 2. KIỂM TRA DỮ LIỆU ĐÃ CÓ CHƯA (Cột G - Status thường là index 6)
+            # Giả sử: Cột A(0):URL, B(1):Name, ..., G(6):Status
+            if len(row_data) >= 7:
+                status_existing = row_data[6]
+                if status_existing in ["Success", "NOT_FOUND", "No Profile"]:
+                    print(f"⏭️ Dòng {i+1}: Đã có dữ liệu ({status_existing}), bỏ qua.")
+                    continue
 
-        elif data and data.get('Name') and data['Name'] != "No Profile":
-            # === THÀNH CÔNG ===
-            ws.update(range_name=f"B{row}:G{row}", values=[[
-                data['Name'],
-                data['Title'],
-                data['Location'],
-                data['Connection'],
-                data['Company'],
-                "Success"
-            ]])
-            print(f"   ✅ OK: {data['Name']}")
+            # Nếu vượt qua các kiểm tra trên thì mới tiến hành Crawl
+            print(f"🔄 Đang xử lý dòng {i+1}: {url}")
+            data, status = crawl_profile(driver, url)
+            row = i + 1
+            if data and data.get('Name') == "No Profile":
+                # === TRƯỜNG HỢP PROFILE KHÔNG TỒN TẠI ===
+                ws.update(range_name=f"B{row}:G{row}", values=[[
+                    "No Profile", "", "", "", "", ""
+                ]])
+                print(f"   ⚠️ Profile không tồn tại (NOT_FOUND)")
 
-        else:
-            # === LỖI KHÁC ===
-            error_msg = f"Error: {status}"
-            ws.update(range_name=f"B{row}:G{row}", values=[[
-                "", "", "", "", "", error_msg
-            ]])
-            print(f"   ❌ {error_msg}")
+            elif data and data.get('Name') and data['Name'] != "No Profile":
+                # === THÀNH CÔNG ===
+                ws.update(range_name=f"B{row}:G{row}", values=[[
+                    data['Name'],
+                    data['Title'],
+                    data['Location'],
+                    data['Connection'],
+                    data['Company'],
+                    "Success"
+                ]])
+                print(f"   ✅ OK: {data['Name']}")
 
-            if status == "AUTH_WALL":
-                print("🛑 Dừng do Auth Wall!")
+            else:
+                # === LỖI KHÁC ===
+                error_msg = f"Error: {status}"
+                ws.update(range_name=f"B{row}:G{row}", values=[[
+                    "", "", "", "", "", error_msg
+                ]])
+                print(f"   ❌ {error_msg}")
+
+                if status == "AUTH_WALL":
+                    print("🛑 Dừng do Auth Wall!")
+                    break
+
+            count +=1
+            if count >= MAX_PROFILE:
+                print("reached max limit")
                 break
 
-        count +=1
-        if count >= MAX_PROFILE:
-            print("reached max limit")
-            break
-
-        time.sleep(random.randint(3, 6))
-
-    driver.quit()
-
+            time.sleep(random.randint(3, 6))
+            
+    finally:
+        time.sleep(5)
+        driver.quit()
 if __name__ == "__main__":
     main()
     print("✅ Done!")
