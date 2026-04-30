@@ -80,9 +80,8 @@ def get_missive_linkedin_code():
         "Authorization": f"Bearer {MISSIVE_API_KEY}",
         "Content-Type": "application/json",
     }
-    # Fix lỗi 400 bằng cách lấy inbox cá nhân hoặc shared
-    # Bạn có thể thử thay "personal" bằng "shared" nếu không ra kết quả
-    PARAMS = {"limmit": 20, "inbox": "true"}
+    # Trong ảnh bạn có nhiều mail, nên lấy giới hạn 10-20 để không sót
+    PARAMS = { "limit": 15 } 
 
     try:
         response = requests.get(
@@ -92,30 +91,33 @@ def get_missive_linkedin_code():
         )
         
         if response.status_code != 200:
+            print(f"❌ Lỗi API Missive: {response.status_code}")
             return None
 
         conversations = response.json().get("conversations", [])
         
         for c in conversations:
-            # 1. Kiểm tra xem có đúng là email từ LinkedIn không
+            subject = c.get("latest_message_subject", "")
             authors = c.get("authors", [])
+            # Kiểm tra tên người gửi là LinkedIn
             is_linkedin = any(a.get("name") == "LinkedIn" for a in authors)
-            
-            if is_linkedin:
-                subject = c.get("latest_message_subject", "")
-                # 2. Dùng Regex lấy đúng 6 số (an toàn hơn split)
-                import re
+
+            # ĐIỀU KIỆN QUAN TRỌNG: Phải là email chứa mã xác minh
+            # Dựa theo ảnh của bạn: "Here's your verification code 426655"
+            if is_linkedin and "verification code" in subject.lower():
+                print(f"📩 Tìm thấy email xác minh: {subject}")
+                
+                # Dùng Regex lấy cụm 6 số
                 match = re.search(r'\b\d{6}\b', subject)
                 if match:
-                    return match.group(0)
+                    otp = match.group(0)
+                    print(f"✨ OTP bóc tách được: {otp}")
+                    return otp
                     
+        print("🔍 Không tìm thấy email chứa verification code nào trong 15 mail gần nhất.")
         return None
     except Exception as e:
-        print(f"Lỗi: {e}")
-        return None
-
-    except Exception as e:
-        print(f"❌ Lỗi kết nối API: {e}")
+        print(f"❌ Lỗi xử lý API: {e}")
         return None
 # --- 3. LOGIN ---
 def login_linkedin(driver):
