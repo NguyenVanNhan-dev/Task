@@ -2,7 +2,7 @@ name: Remote Trigger Crawl
 
 on:
   repository_dispatch:
-    types: [trigger-crawl]
+    types: [trigger_crawl]
 
 jobs:
   crawl:
