@@ -163,7 +163,7 @@ def login_linkedin(driver):
     # 2. Đăng nhập bằng Password
     print("INFO: Tiến hành đăng nhập bằng tài khoản và mật khẩu...")
     try:
-        username_field = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, XPATH_USER)))
+        username_field = WebDriverWait(driver, 40).until(EC.presence_of_element_located((By.XPATH, XPATH_USER)))
         password_field = driver.find_element(By.XPATH, XPATH_PASS)
         login_button = driver.find_element(By.XPATH, XPATH_LOGIN_BUTTON)
         print("INFO: Đang điền thông tin đăng nhập...")
