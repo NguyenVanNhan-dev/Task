@@ -129,6 +129,7 @@ def login_linkedin(driver):
     print("INFO: Đang truy cập LinkedIn...")
     driver.get("https://www.linkedin.com/login")
     time.sleep(2)
+    driver.save_screenshot("after_get_url.png") # CHỤP ẢNH 1: Để xem trang login có hiện ra không
 
     # 1. Kiểm tra và tải Cookies
     credentials_changed = True
@@ -158,8 +159,10 @@ def login_linkedin(driver):
     try:
         WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "username"))).send_keys(USERNAME)
         driver.find_element(By.ID, "password").send_keys(PASSWORD)
+        driver.save_screenshot("before_click_login.png") # CHỤP ẢNH 2: Để xem đã điền xong chưa
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
         time.sleep(5)
+        driver.save_screenshot("after_click_login.png") # CHỤP ẢNH 3: Xem nó ra trang Feed hay trang OTP/Captcha
 
         # --- 3. Xử lý xác thực OTP ---
         try:
