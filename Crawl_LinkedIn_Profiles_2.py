@@ -124,12 +124,13 @@ def login_linkedin(driver):
     """
     Hàm đăng nhập LinkedIn tổng hợp:
     Kiểm tra Cookies -> Đăng nhập Password -> Xử lý OTP -> Lưu lại Cookies mới.
+    Chụp ảnh màn hình khi thành công hoặc thất bại.
     """
     print("INFO: Đang truy cập LinkedIn...")
     driver.get("https://www.linkedin.com/login")
     time.sleep(2)
 
-    # 1. Kiểm tra và tải Cookies nếu trùng khớp thông tin đăng nhập
+    # 1. Kiểm tra và tải Cookies
     credentials_changed = True
     if os.path.exists(CREDENTIALS_FILE):
         with open(CREDENTIALS_FILE, "rb") as f:
@@ -148,9 +149,11 @@ def login_linkedin(driver):
 
         if "feed" in driver.current_url or driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
             print("INFO: Đăng nhập thành công bằng Cookies!")
+            # --- CHỤP ẢNH THÀNH CÔNG (COOKIES) ---
+            driver.save_screenshot("login_success_cookies.png")
             return True
 
-    # 2. Nếu Cookies thất bại hoặc đổi tài khoản -> Đăng nhập bằng Password
+    # 2. Đăng nhập bằng Password
     print("INFO: Tiến hành đăng nhập bằng tài khoản và mật khẩu...")
     try:
         WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "username"))).send_keys(USERNAME)
@@ -158,31 +161,26 @@ def login_linkedin(driver):
         driver.find_element(By.XPATH, "//button[@type='submit']").click()
         time.sleep(5)
 
-        # --- 3. Xử lý xác thực mã PIN (OTP) tự động qua Missive API ---
+        # --- 3. Xử lý xác thực OTP ---
         try:
-            # Kiểm tra xem có trường nhập mã pin không (LinkedIn dùng ID này cho trang xác thực)
             pin_field = driver.find_elements(By.ID, "input__email_verification_pin")
-            
             if pin_field:
                 print("⚠️ CẢNH BÁO: LinkedIn yêu cầu mã xác thực từ Email!")
-                print("📡 Đang tự động quét mã OTP từ Missive API...")
-
+                # --- CHỤP ẢNH KHI GẶP TRANG OTP ---
+                driver.save_screenshot("otp_required.png")
+                
                 otp_code = None
-                # Thử lấy mã 5 lần, mỗi lần cách nhau 10 giây để đợi mail về
                 for attempt in range(1, 6):
                     print(f"🔄 Thử lấy mã lần {attempt}...")
-                    otp_code = get_missive_linkedin_code() # Gọi hàm dùng API Key của bạn
-                    
+                    otp_code = get_missive_linkedin_code()
                     if otp_code:
                         print(f"✅ Đã tìm thấy mã OTP: {otp_code}")
                         break
-                    
                     if attempt < 5:
-                        time.sleep(10) # Đợi mail đổ về inbox
+                        time.sleep(10)
                 
                 if otp_code:
                     pin_field[0].send_keys(otp_code)
-                    # Tìm nút submit (ID thường là email-pin-submit-button)
                     try:
                         driver.find_element(By.ID, "email-pin-submit-button").click()
                         print("🚀 Đã điền mã và nhấn gửi!")
@@ -190,28 +188,35 @@ def login_linkedin(driver):
                     except:
                         print("❌ Không tìm thấy nút Submit OTP.")
                 else:
-                    print("🛑 LỖI: Đã thử 5 lần nhưng không lấy được mã OTP từ API.")
-                    # Bạn có thể chọn dừng chương trình hoặc chụp ảnh màn hình tại đây
+                    print("🛑 LỖI: Không lấy được OTP từ API.")
+                    driver.save_screenshot("otp_failed.png") # Chụp khi không lấy được mã
 
         except Exception as e:
             print(f"INFO: Không phát hiện yêu cầu OTP hoặc lỗi xử lý: {e}")
 
-        # 4. Kiểm tra đăng nhập thành công và Lưu Cookies/Credentials
+        # 4. Kiểm tra đăng nhập cuối cùng
         if "feed" in driver.current_url or driver.find_elements(By.CLASS_NAME, 'global-nav__me-photo'):
+            # Lưu Cookies và Creds
             with open(COOKIES_FILE, "wb") as f:
                 pickle.dump(driver.get_cookies(), f)
             with open(CREDENTIALS_FILE, "wb") as f:
                 pickle.dump({"username": USERNAME, "password": PASSWORD}, f)
+            
             print("INFO: Đăng nhập thành công và đã cập nhật Cookies mới!")
+            # --- CHỤP ẢNH THÀNH CÔNG ---
+            driver.save_screenshot("login_success_final.png")
             return True
         else:
-            print("ERROR: Đăng nhập thất bại. Vui lòng kiểm tra lại tài khoản hoặc giao diện web.")
+            print("ERROR: Đăng nhập thất bại.")
+            # --- CHỤP ẢNH THẤT BẠI (SAU KHI SUBMIT) ---
+            driver.save_screenshot("login_failed_final.png")
             return False
 
     except Exception as e:
         print(f"ERROR: Lỗi trong quá trình đăng nhập: {e}")
+        # --- CHỤP ẢNH LỖI HỆ THỐNG ---
+        driver.save_screenshot("login_system_error.png")
         return False
-
 # --- 4. CRAWL PROFILE (HÀM FIX TRIỆT ĐỂ) ---
 def crawl_profile(driver, raw_url):
     try:
