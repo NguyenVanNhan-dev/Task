@@ -1,7 +1,7 @@
 # Cài đặt 
 ## 1. Cài thư viện
 ```bash
-pip install selenium webdriver-manager gspread google-auth
+pip install requirements.txt
 ```
 ## 2. Cấu hình Google Sheet
 - Tạo Service Account trên Google Cloud
