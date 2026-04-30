@@ -81,7 +81,7 @@ def get_missive_linkedin_code():
         "Content-Type": "application/json",
     }
     # Trong ảnh bạn có nhiều mail, nên lấy giới hạn 10-20 để không sót
-   PARAMS = {"limmit": 20, "inbox": "true"}
+    PARAMS = {"limmit": 20, "inbox": "true"}
 
     try:
         response = requests.get(
