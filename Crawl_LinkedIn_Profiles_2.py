@@ -187,13 +187,13 @@ def login_linkedin(driver):
                 driver.save_screenshot("otp_required.png")
                 
                 otp_code = None
-                for attempt in range(1, 6):
+                for attempt in range(1, 10):
                     print(f"🔄 Thử lấy mã lần {attempt}...")
                     otp_code = get_missive_linkedin_code()
                     if otp_code:
                         print(f"✅ Đã tìm thấy mã OTP: {otp_code}")
                         break
-                    if attempt < 5:
+                    if attempt < 9:
                         time.sleep(10)
                 
                 if otp_code:
