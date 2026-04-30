@@ -121,6 +121,12 @@ def get_missive_linkedin_code():
         return None
 # --- 3. LOGIN ---
 def login_linkedin(driver):
+
+    # Tìm ô Username bằng nhiều ID và Name phổ biến
+    XPATH_USER = '//input[@id="username" or @id="session_key" or @name="session_key"]'
+    XPATH_PASS = '//input[@id="password" or @id="session_password" or @name="session_password"]'
+    # Nút login có thể là button hoặc input, tìm theo text hoặc type
+    XPATH_LOGIN_BUTTON = '//button[contains(text(), "Sign in") or @type="submit"]'
     """
     Hàm đăng nhập LinkedIn tổng hợp:
     Kiểm tra Cookies -> Đăng nhập Password -> Xử lý OTP -> Lưu lại Cookies mới.
@@ -157,13 +163,21 @@ def login_linkedin(driver):
     # 2. Đăng nhập bằng Password
     print("INFO: Tiến hành đăng nhập bằng tài khoản và mật khẩu...")
     try:
-        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, "username"))).send_keys(USERNAME)
-        driver.find_element(By.ID, "password").send_keys(PASSWORD)
-        driver.save_screenshot("before_click_login.png") # CHỤP ẢNH 2: Để xem đã điền xong chưa
-        driver.find_element(By.XPATH, "//button[@type='submit']").click()
-        time.sleep(5)
-        driver.save_screenshot("after_click_login.png") # CHỤP ẢNH 3: Xem nó ra trang Feed hay trang OTP/Captcha
-
+        username_field = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, XPATH_USER)))
+        password_field = driver.find_element(By.XPATH, XPATH_PASS)
+        login_button = driver.find_element(By.XPATH, XPATH_LOGIN_BUTTON)
+        print("INFO: Đang điền thông tin đăng nhập...")
+        username_field.send_keys(username)
+        time.sleep(2)
+        password_field.send_keys(password)
+        time.sleep(2)
+        
+        driver.save_screenshot("before_click_submit.png") # CHỤP ẢNH: Trước khi bấm Sign in
+        login_button.click()
+        
+        # Đợi trang chuyển hướng hoặc hiện OTP
+        time.sleep(8)
+        driver.save_screenshot("after_click_submit.png") # CHỤP ẢNH: Sau khi bấm để xem có OTP/Captcha không
         # --- 3. Xử lý xác thực OTP ---
         try:
             pin_field = driver.find_elements(By.ID, "input__email_verification_pin")
