@@ -167,9 +167,9 @@ def login_linkedin(driver):
         password_field = driver.find_element(By.XPATH, XPATH_PASS)
         login_button = driver.find_element(By.XPATH, XPATH_LOGIN_BUTTON)
         print("INFO: Đang điền thông tin đăng nhập...")
-        username_field.send_keys(username)
+        username_field.send_keys(USERNAME)
         time.sleep(2)
-        password_field.send_keys(password)
+        password_field.send_keys(PASSWORD)
         time.sleep(2)
         
         driver.save_screenshot("before_click_submit.png") # CHỤP ẢNH: Trước khi bấm Sign in
