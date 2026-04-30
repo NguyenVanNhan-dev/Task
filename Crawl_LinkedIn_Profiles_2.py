@@ -176,7 +176,7 @@ def login_linkedin(driver):
         login_button.click()
         
         # Đợi trang chuyển hướng hoặc hiện OTP
-        time.sleep(8)
+        time.sleep(20)
         driver.save_screenshot("after_click_submit.png") # CHỤP ẢNH: Sau khi bấm để xem có OTP/Captcha không
         # --- 3. Xử lý xác thực OTP ---
         try:
@@ -187,13 +187,13 @@ def login_linkedin(driver):
                 driver.save_screenshot("otp_required.png")
                 
                 otp_code = None
-                for attempt in range(1, 10):
+                for attempt in range(1, 6):
                     print(f"🔄 Thử lấy mã lần {attempt}...")
                     otp_code = get_missive_linkedin_code()
                     if otp_code:
                         print(f"✅ Đã tìm thấy mã OTP: {otp_code}")
                         break
-                    if attempt < 9:
+                    if attempt < 5:
                         time.sleep(10)
                 
                 if otp_code:
